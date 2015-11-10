@@ -402,52 +402,57 @@ void loop()
             Serial.print("X : ");
             Serial.print(TO_DEG(yaw) - pYaw);          
             Serial.print("Y : ");
-            Serial.println(TO_DEG(pitch) - pPitch);
+            Serial.println(pPitch - TO_DEG(pitch));
             pPitch = TO_DEG(pitch);
             pYaw = TO_DEG(yaw);
           }      
-          if(digitalRead(button1) == LOW && !button1_handled)
+          int b1 = digitalRead(button1);
+          int b2 = digitalRead(button2);
+          int b3 = digitalRead(button3);
+          int b4 = digitalRead(button4);
+          if(b1 == LOW && !button1_handled)
           {
             button1_handled = true;
             bleKeyboard.press(KEYCODE_ARROW_DOWN);
             Serial.println("1 right");
             bleKeyboard.release(KEYCODE_ARROW_DOWN);
           }
-          if(digitalRead(button2) == LOW && !button2_handled)
+          if(b2 == LOW && !button2_handled)
           {
             button2_handled = true;
             //bleKeyboard.press(KEYCODE_ARROW_LEFT);
             Serial.println("2 left");
             //bleKeyboard.release(KEYCODE_ARROW_LEFT);
-            bleMouse.click();
+            bleMouse.press();
           }     
-          if(digitalRead(button3) == LOW && !button3_handled)
+          if(b3 == LOW && !button3_handled)
           {
             button3_handled = true;
             bleKeyboard.press(KEYCODE_ARROW_UP);
             Serial.println("3 up");
             bleKeyboard.release(KEYCODE_ARROW_UP);
           }
-          if(digitalRead(button4) == LOW && !button4_handled)
+          if(b4 == LOW && !button4_handled)
           {
             button4_handled = true;
             bleKeyboard.press(KEYCODE_ARROW_RIGHT);
             Serial.println("4 right");
             bleKeyboard.release(KEYCODE_ARROW_RIGHT);
           }
-          if(digitalRead(button1) == HIGH)
+          if(b1 == HIGH)
           {
             button1_handled = false;
           }
-          if(digitalRead(button2) == HIGH)
+          if(b2 == HIGH && button2_handled)
           {
+            bleMouse.release();
             button2_handled = false;
           }
-          if(digitalRead(button3) == HIGH)
+          if(b3 == HIGH)
           {
             button3_handled = false;
           }
-          if(digitalRead(button4) == HIGH)
+          if(b4 == HIGH)
           {
             button4_handled = false;
           }
