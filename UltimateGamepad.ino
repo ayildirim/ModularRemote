@@ -394,8 +394,8 @@ void loop()
         //if(pRoll == NULL) pRoll = TO_DEG(roll);
         if(bleHID.connected())
         {
-          if(pPitch != NULL && pYaw != NULL &&
-          ((TO_DEG(yaw) - pYaw)*10>0.5 || (TO_DEG(pitch) - pPitch)*10>0.5)
+          if(pPitch != NULL && pYaw != NULL 
+          /* && ((TO_DEG(yaw) - pYaw)*10>0.5 || (TO_DEG(pitch) - pPitch)*10>0.5) */
           )
           {
             bleMouse.move((TO_DEG(yaw) - pYaw)*10,(TO_DEG(pitch) - pPitch)*10,0);
@@ -409,26 +409,31 @@ void loop()
           if(digitalRead(button1) == LOW && !button1_handled)
           {
             button1_handled = true;
-            bleKeyboard.press(KEYCODE_ARROW_RIGHT);
+            bleKeyboard.press(KEYCODE_ARROW_DOWN);
             Serial.println("1 right");
+            bleKeyboard.release(KEYCODE_ARROW_DOWN);
           }
           if(digitalRead(button2) == LOW && !button2_handled)
           {
             button2_handled = true;
-            bleKeyboard.press(KEYCODE_ARROW_LEFT);
+            //bleKeyboard.press(KEYCODE_ARROW_LEFT);
             Serial.println("2 left");
+            //bleKeyboard.release(KEYCODE_ARROW_LEFT);
+            bleMouse.click();
           }     
           if(digitalRead(button3) == LOW && !button3_handled)
           {
             button3_handled = true;
             bleKeyboard.press(KEYCODE_ARROW_UP);
             Serial.println("3 up");
+            bleKeyboard.release(KEYCODE_ARROW_UP);
           }
           if(digitalRead(button4) == LOW && !button4_handled)
           {
             button4_handled = true;
-            bleKeyboard.press(KEYCODE_ARROW_DOWN);
-            Serial.println("4 down");
+            bleKeyboard.press(KEYCODE_ARROW_RIGHT);
+            Serial.println("4 right");
+            bleKeyboard.release(KEYCODE_ARROW_RIGHT);
           }
           if(digitalRead(button1) == HIGH)
           {
@@ -436,15 +441,15 @@ void loop()
           }
           if(digitalRead(button2) == HIGH)
           {
-            button1_handled = false;
+            button2_handled = false;
           }
           if(digitalRead(button3) == HIGH)
           {
-            button1_handled = false;
+            button3_handled = false;
           }
           if(digitalRead(button4) == HIGH)
           {
-            button1_handled = false;
+            button4_handled = false;
           }
         }
   }
