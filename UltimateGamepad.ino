@@ -60,15 +60,7 @@ int output_format = OUTPUT__FORMAT_TEXT;
 // Message format: "!ERR: reading <sensor>", followed by "\r\n".
 boolean output_errors = false;  // true or false
 
-// Bluetooth
-// You can set this to true, if you have a Rovering Networks Bluetooth Module attached.
-// The connect/disconnect message prefix of the module has to be set to "#".
-// (Refer to manual, it can be set like this: SO,#)
-// When using this, streaming output will only be enabled as long as we're connected. That way
-// receiver and sender are synchronzed easily just by connecting/disconnecting.
-// It is not necessary to set this! It just makes life easier when writing code for
-// the receiving side. The Processing test sketch also works without setting this.
-// NOTE: When using this, OUTPUT__STARTUP_STREAM_ON has no effect!
+
 #define OUTPUT__HAS_RN_BLUETOOTH false  // true or false
 
 
@@ -366,96 +358,116 @@ void loop()
 {
   BLECentral central = bleHID.central();
   // Time to read the sensors again?
-  if(central && ((millis() - timestamp) >= OUTPUT__DATA_INTERVAL))
+  if(central)
   {
+    Serial.println("Connected");
+    while(central.connected())
+    {
+      if((millis() - timestamp) >= OUTPUT__DATA_INTERVAL)
+      {
     timestamp_old = timestamp;
     timestamp = millis();
     if (timestamp > timestamp_old)
+    {
       G_Dt = (float) (timestamp - timestamp_old) / 1000.0f; // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
-    else G_Dt = 0;
+    }
+    else 
+    {
+      G_Dt = 0;
+    }
 
-    // Update sensor readings
+    pollSensor();
+
+    if(pYaw == NULL) pYaw = TO_DEG(yaw);
+    if(pPitch == NULL) pPitch = TO_DEG(pitch);
+
+      if(pPitch != NULL && pYaw != NULL 
+      /* && ((TO_DEG(yaw) - pYaw)*10>0.5 || (TO_DEG(pitch) - pPitch)*10>0.5) */
+      )
+      {
+        bleMouse.move((TO_DEG(yaw) - pYaw)*10,(TO_DEG(pitch) - pPitch)*10,0);
+        Serial.print("X : ");
+        Serial.print(TO_DEG(yaw) - pYaw);          
+        Serial.print("Y : ");
+        Serial.println(pPitch - TO_DEG(pitch));
+        pPitch = TO_DEG(pitch);
+        pYaw = TO_DEG(yaw);
+      }      
+      handleButtons();
+      
+    }
+  }
+  Serial.println("Disconnected");
+  }
+}
+
+// Sensor does its thing
+void pollSensor()
+{
+   // Update sensor readings
     read_sensors();
 
+    // Apply sensor calibration
+    compensate_sensor_errors();
+  
+    // Run DCM algorithm
+    Compass_Heading(); // Calculate magnetic heading
+    Matrix_update();
+    Normalize();
+    Drift_correction();
+    Euler_angles();
+}
 
-      // Apply sensor calibration
-      compensate_sensor_errors();
-    
-      // Run DCM algorithm
-      Compass_Heading(); // Calculate magnetic heading
-      Matrix_update();
-      Normalize();
-      Drift_correction();
-      Euler_angles();
-      
-        //output_angles();
-        if(pYaw == NULL) pYaw = TO_DEG(yaw);
-        if(pPitch == NULL) pPitch = TO_DEG(pitch);
-        //if(pRoll == NULL) pRoll = TO_DEG(roll);
-        if(bleHID.connected())
-        {
-          if(pPitch != NULL && pYaw != NULL 
-          /* && ((TO_DEG(yaw) - pYaw)*10>0.5 || (TO_DEG(pitch) - pPitch)*10>0.5) */
-          )
-          {
-            bleMouse.move((TO_DEG(yaw) - pYaw)*10,(TO_DEG(pitch) - pPitch)*10,0);
-            Serial.print("X : ");
-            Serial.print(TO_DEG(yaw) - pYaw);          
-            Serial.print("Y : ");
-            Serial.println(pPitch - TO_DEG(pitch));
-            pPitch = TO_DEG(pitch);
-            pYaw = TO_DEG(yaw);
-          }      
-          int b1 = digitalRead(button1);
-          int b2 = digitalRead(button2);
-          int b3 = digitalRead(button3);
-          int b4 = digitalRead(button4);
-          if(b1 == LOW && !button1_handled)
-          {
-            button1_handled = true;
-            bleKeyboard.press(KEYCODE_ARROW_DOWN);
-            Serial.println("1 right");
-            bleKeyboard.release(KEYCODE_ARROW_DOWN);
-          }
-          if(b2 == LOW && !button2_handled)
-          {
-            button2_handled = true;
-            //bleKeyboard.press(KEYCODE_ARROW_LEFT);
-            Serial.println("2 left");
-            //bleKeyboard.release(KEYCODE_ARROW_LEFT);
-            bleMouse.press();
-          }     
-          if(b3 == LOW && !button3_handled)
-          {
-            button3_handled = true;
-            bleKeyboard.press(KEYCODE_ARROW_UP);
-            Serial.println("3 up");
-            bleKeyboard.release(KEYCODE_ARROW_UP);
-          }
-          if(b4 == LOW && !button4_handled)
-          {
-            button4_handled = true;
-            bleKeyboard.press(KEYCODE_ARROW_RIGHT);
-            Serial.println("4 right");
-            bleKeyboard.release(KEYCODE_ARROW_RIGHT);
-          }
-          if(b1 == HIGH)
-          {
-            button1_handled = false;
-          }
-          if(b2 == HIGH && button2_handled)
-          {
-            bleMouse.release();
-            button2_handled = false;
-          }
-          if(b3 == HIGH)
-          {
-            button3_handled = false;
-          }
-          if(b4 == HIGH)
-          {
-            button4_handled = false;
-          }
-        }
+void handleButtons()
+{
+  int b1 = digitalRead(button1);
+  int b2 = digitalRead(button2);
+  int b3 = digitalRead(button3);
+  int b4 = digitalRead(button4);
+  if(b1 == LOW && !button1_handled)
+  {
+    button1_handled = true;
+    bleKeyboard.press(KEYCODE_ARROW_DOWN);
+    Serial.println("1 right");
+    bleKeyboard.release(KEYCODE_ARROW_DOWN);
+  }
+  if(b2 == LOW && !button2_handled)
+  {
+    button2_handled = true;
+    //bleKeyboard.press(KEYCODE_ARROW_LEFT);
+    Serial.println("2 left");
+    //bleKeyboard.release(KEYCODE_ARROW_LEFT);
+    bleMouse.press();
+  }     
+  if(b3 == LOW && !button3_handled)
+  {
+    button3_handled = true;
+    bleKeyboard.press(KEYCODE_ARROW_UP);
+    Serial.println("3 up");
+    bleKeyboard.release(KEYCODE_ARROW_UP);
+  }
+  if(b4 == LOW && !button4_handled)
+  {
+    button4_handled = true;
+    bleKeyboard.press(KEYCODE_ARROW_RIGHT);
+    Serial.println("4 right");
+    bleKeyboard.release(KEYCODE_ARROW_RIGHT);
+  }
+  if(b1 == HIGH)
+  {
+    button1_handled = false;
+  }
+  if(b2 == HIGH && button2_handled)
+  {
+    bleMouse.release();
+    button2_handled = false;
+  }
+  if(b3 == HIGH)
+  {
+    button3_handled = false;
+  }
+  if(b4 == HIGH)
+  {
+    button4_handled = false;
   }
 }
