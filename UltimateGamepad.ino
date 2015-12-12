@@ -310,6 +310,8 @@ void setup()
 {
   Serial.begin(OUTPUT__BAUD_RATE);
 
+  // initSensor();
+  
   // clears bond data on every boot
   bleHID.clearBondStoreData();
   Serial.println("started");
@@ -374,6 +376,42 @@ void keyPress(uint8_t key)
     bleKeyboard.release(key);
 }
 
+bool isMouseActive = false;
+void operateMouse()
+{
+  if((millis() - timestamp) >= OUTPUT__DATA_INTERVAL)
+  {
+    timestamp_old = timestamp;
+    timestamp = millis();
+    if (timestamp > timestamp_old)
+    {
+      G_Dt = (float) (timestamp - timestamp_old) / 1000.0f; // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
+    }
+    else 
+    {
+      G_Dt = 0;
+    }
+
+    pollSensor();
+
+    if(pYaw == NULL) pYaw = TO_DEG(yaw);
+    if(pPitch == NULL) pPitch = TO_DEG(pitch);
+
+      if(pPitch != NULL && pYaw != NULL 
+      /* && ((TO_DEG(yaw) - pYaw)*10>0.5 || (TO_DEG(pitch) - pPitch)*10>0.5) */
+      )
+      {
+        bleMouse.move((TO_DEG(yaw) - pYaw)*10,(TO_DEG(pitch) - pPitch)*10,0);
+        Serial.print("X : ");
+        Serial.print(TO_DEG(yaw) - pYaw);          
+        Serial.print("Y : ");
+        Serial.println(pPitch - TO_DEG(pitch));
+        pPitch = TO_DEG(pitch);
+        pYaw = TO_DEG(yaw);
+      }      
+    }  
+}
+
 void loop()
 {
   BLECentral central = bleHID.central();
@@ -389,37 +427,10 @@ void loop()
         tuslariKontrolEt(komut);
         irrecv.resume(); // Receive the next value
       }
-      if((millis() - timestamp) >= OUTPUT__DATA_INTERVAL)
+      if(isMouseActive)
       {
-        timestamp_old = timestamp;
-        timestamp = millis();
-        if (timestamp > timestamp_old)
-        {
-          G_Dt = (float) (timestamp - timestamp_old) / 1000.0f; // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
-        }
-        else 
-        {
-          G_Dt = 0;
-        }
-
-        pollSensor();
-
-        if(pYaw == NULL) pYaw = TO_DEG(yaw);
-        if(pPitch == NULL) pPitch = TO_DEG(pitch);
-
-          if(pPitch != NULL && pYaw != NULL 
-          /* && ((TO_DEG(yaw) - pYaw)*10>0.5 || (TO_DEG(pitch) - pPitch)*10>0.5) */
-          )
-          {
-            bleMouse.move((TO_DEG(yaw) - pYaw)*10,(TO_DEG(pitch) - pPitch)*10,0);
-            Serial.print("X : ");
-            Serial.print(TO_DEG(yaw) - pYaw);          
-            Serial.print("Y : ");
-            Serial.println(pPitch - TO_DEG(pitch));
-            pPitch = TO_DEG(pitch);
-            pYaw = TO_DEG(yaw);
-          }      
-        }
+        operateMouse();
+      }
     }
   Serial.println("Disconnected");
   }
