@@ -5,17 +5,25 @@
 #include <BLEKeyboard.h>
 #include <BLEMultimedia.h>
 #include <BLESystemControl.h>
+#include <IRremote.h>
 
 // define pins (varies per shield/board)
 #define BLE_REQ   10
 #define BLE_RDY   2
 #define BLE_RST   9
+#define INF_RCV   3
 
+// Infrared variables
+IRrecv irrecv(INF_RCV);
+decode_results results;
+
+// Bluetooth variables
 BLEHIDPeripheral bleHID = BLEHIDPeripheral(BLE_REQ, BLE_RDY, BLE_RST);
 BLEMouse bleMouse;
 BLEKeyboard bleKeyboard;
 BLEMultimedia bleMultimedia;
 BLESystemControl bleSystemControl;
+
 /*********** USER SETUP AREA! Set your options here! *************/
 /*****************************************************************/
 
@@ -60,10 +68,6 @@ int output_format = OUTPUT__FORMAT_TEXT;
 // Message format: "!ERR: reading <sensor>", followed by "\r\n".
 boolean output_errors = false;  // true or false
 
-
-#define OUTPUT__HAS_RN_BLUETOOTH false  // true or false
-
-
 // SENSOR CALIBRATION
 /*****************************************************************/
 // How to calibrate? Read the tutorial at http://dev.qu.tu-berlin.de/projects/sf-razor-9dof-ahrs
@@ -76,15 +80,6 @@ boolean output_errors = false;  // true or false
 #define ACCEL_Y_MAX ((float) 288)
 #define ACCEL_Z_MIN ((float) -294)
 #define ACCEL_Z_MAX ((float) 269)
-
-// Magnetometer (standard calibration)
-// "magn x,y,z (min/max) = X_MIN/X_MAX  Y_MIN/Y_MAX  Z_MIN/Z_MAX"
-//#define MAGN_X_MIN ((float) -600)
-//#define MAGN_X_MAX ((float) 600)
-//#define MAGN_Y_MIN ((float) -600)
-//#define MAGN_Y_MAX ((float) 600)
-//#define MAGN_Z_MIN ((float) -600)
-//#define MAGN_Z_MAX ((float) 600)
 
 // Magnetometer (extended calibration)
 // Uncommend to use extended magnetometer calibration (compensates hard & soft iron errors)
@@ -147,7 +142,6 @@ const float magn_ellipsoid_transform[3][3] = {{0.970991, 0.00583310, -0.00265756
 #define Ki_YAW 0.00002f
 
 // Stuff
-#define STATUS_LED_PIN 13  // Pin number of status LED
 #define GRAVITY 256.0f // "1G reference" used for DCM filter and accelerometer calibration
 #define TO_RAD(x) (x * 0.01745329252)  // *pi/180
 #define TO_DEG(x) (x * 57.2957795131)  // *180/pi
@@ -285,13 +279,11 @@ void check_reset_calibration_session()
 void turn_output_stream_on()
 {
   output_stream_on = true;
-  digitalWrite(STATUS_LED_PIN, HIGH);
 }
 
 void turn_output_stream_off()
 {
   output_stream_on = false;
-  digitalWrite(STATUS_LED_PIN, LOW);
 }
 
 // Blocks until another byte is available on serial port
@@ -301,26 +293,8 @@ char readChar()
   return Serial.read();
 }
 
-#define button1 0
-#define button2 1
-#define button3 3
-#define button4 4
-
-void setup()
+void initSensor()
 {
-  // Init serial output
-  Serial.begin(OUTPUT__BAUD_RATE);
-
-  pinMode(button1, INPUT_PULLUP);
-  pinMode(button2, INPUT_PULLUP);
-  pinMode(button3, INPUT_PULLUP);
-  pinMode(button4, INPUT_PULLUP);
-  
-  // Init status LED
-  pinMode (STATUS_LED_PIN, OUTPUT);
-  digitalWrite(STATUS_LED_PIN, LOW);
-
-  // Init sensors
   delay(50);  // Give sensors enough time to start
   I2C_Init();
   Accel_Init();
@@ -329,14 +303,18 @@ void setup()
   
   // Read sensors, init DCM algorithm
   delay(20);  // Give sensors enough time to collect data
-  reset_sensor_fusion();
+  reset_sensor_fusion(); 
+}
 
+void setup()
+{
+  Serial.begin(OUTPUT__BAUD_RATE);
 
   // clears bond data on every boot
   bleHID.clearBondStoreData();
   Serial.println("started");
-   bleHID.setDeviceName("Arduino BLE HID");
-//  bleHID.setAppearance(961);
+  bleHID.setDeviceName("Arduino BLE HID");
+  // bleHID.setAppearance(961);
 
   bleHID.setReportIdOffset(1);
   bleHID.setLocalName("HID");
@@ -345,129 +323,118 @@ void setup()
   bleHID.addHID(bleKeyboard);
   bleHID.addHID(bleMultimedia);
   bleHID.addHID(bleSystemControl);
-
   bleHID.begin();
 
   Serial.println(F("BLE HID"));
 }
+
 float pYaw=NULL,pPitch=NULL,pRoll=NULL;
 float fYaw=NULL,fPitch=NULL,fRoll=NULL;
-bool button1_handled = false, button2_handled = false, button3_handled, button4_handled = false;
-// Main loop
+
+#define tusSayisi 6
+
+int tuslar[tusSayisi][3] = {
+  {KEYCODE_ARROW_DOWN,89,65625},
+  {KEYCODE_ARROW_UP,88,65624},
+  {KEYCODE_ARROW_LEFT,90,65626},
+  {KEYCODE_ARROW_RIGHT,91,65627},
+  {KEYCODE_ENTER,92,65628},
+  {KEYCODE_ESC,10,65546}
+};
+
+bool tusDurumlari[tusSayisi] ={
+  false,
+  false,
+  false,
+  false,
+  false,
+  false
+};
+
+void tuslariKontrolEt(int gelen)
+{
+  for(int i=0; i<tusSayisi; i++)
+  {
+    siradakiTusuKontrolEt(gelen,i);
+  }
+}
+
+void siradakiTusuKontrolEt(int gelen,short tusno)
+{
+  if(tuslar[tusno][tusDurumlari[tusno]?1:2] == gelen)
+  {
+    keyPress(tuslar[tusno][0]);
+    tusDurumlari[tusno] = !tusDurumlari[tusno];
+  }
+}
+
+void keyPress(uint8_t key)
+{
+    bleKeyboard.press(key);
+    bleKeyboard.release(key);
+}
+
 void loop()
 {
   BLECentral central = bleHID.central();
   // Time to read the sensors again?
   if(central)
   {
-    Serial.println("Connected");
+    Serial.println("Connected");   
+    irrecv.enableIRIn();
     while(central.connected())
     {
+      if (irrecv.decode(&results)) {
+        int komut = results.value;
+        tuslariKontrolEt(komut);
+        irrecv.resume(); // Receive the next value
+      }
       if((millis() - timestamp) >= OUTPUT__DATA_INTERVAL)
       {
-    timestamp_old = timestamp;
-    timestamp = millis();
-    if (timestamp > timestamp_old)
-    {
-      G_Dt = (float) (timestamp - timestamp_old) / 1000.0f; // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
-    }
-    else 
-    {
-      G_Dt = 0;
-    }
+        timestamp_old = timestamp;
+        timestamp = millis();
+        if (timestamp > timestamp_old)
+        {
+          G_Dt = (float) (timestamp - timestamp_old) / 1000.0f; // Real time of loop run. We use this on the DCM algorithm (gyro integration time)
+        }
+        else 
+        {
+          G_Dt = 0;
+        }
 
-    pollSensor();
+        pollSensor();
 
-    if(pYaw == NULL) pYaw = TO_DEG(yaw);
-    if(pPitch == NULL) pPitch = TO_DEG(pitch);
+        if(pYaw == NULL) pYaw = TO_DEG(yaw);
+        if(pPitch == NULL) pPitch = TO_DEG(pitch);
 
-      if(pPitch != NULL && pYaw != NULL 
-      /* && ((TO_DEG(yaw) - pYaw)*10>0.5 || (TO_DEG(pitch) - pPitch)*10>0.5) */
-      )
-      {
-        bleMouse.move((TO_DEG(yaw) - pYaw)*10,(TO_DEG(pitch) - pPitch)*10,0);
-        Serial.print("X : ");
-        Serial.print(TO_DEG(yaw) - pYaw);          
-        Serial.print("Y : ");
-        Serial.println(pPitch - TO_DEG(pitch));
-        pPitch = TO_DEG(pitch);
-        pYaw = TO_DEG(yaw);
-      }      
-      handleButtons();
-      
+          if(pPitch != NULL && pYaw != NULL 
+          /* && ((TO_DEG(yaw) - pYaw)*10>0.5 || (TO_DEG(pitch) - pPitch)*10>0.5) */
+          )
+          {
+            bleMouse.move((TO_DEG(yaw) - pYaw)*10,(TO_DEG(pitch) - pPitch)*10,0);
+            Serial.print("X : ");
+            Serial.print(TO_DEG(yaw) - pYaw);          
+            Serial.print("Y : ");
+            Serial.println(pPitch - TO_DEG(pitch));
+            pPitch = TO_DEG(pitch);
+            pYaw = TO_DEG(yaw);
+          }      
+        }
     }
-  }
   Serial.println("Disconnected");
   }
 }
 
+
 // Sensor does its thing
 void pollSensor()
 {
-   // Update sensor readings
     read_sensors();
-
-    // Apply sensor calibration
     compensate_sensor_errors();
-  
     // Run DCM algorithm
-    Compass_Heading(); // Calculate magnetic heading
+    Compass_Heading();
     Matrix_update();
     Normalize();
     Drift_correction();
     Euler_angles();
-}
-
-void handleButtons()
-{
-  int b1 = digitalRead(button1);
-  int b2 = digitalRead(button2);
-  int b3 = digitalRead(button3);
-  int b4 = digitalRead(button4);
-  if(b1 == LOW && !button1_handled)
-  {
-    button1_handled = true;
-    bleKeyboard.press(KEYCODE_ARROW_DOWN);
-    Serial.println("1 right");
-    bleKeyboard.release(KEYCODE_ARROW_DOWN);
-  }
-  if(b2 == LOW && !button2_handled)
-  {
-    button2_handled = true;
-    //bleKeyboard.press(KEYCODE_ARROW_LEFT);
-    Serial.println("2 left");
-    //bleKeyboard.release(KEYCODE_ARROW_LEFT);
-    bleMouse.press();
-  }     
-  if(b3 == LOW && !button3_handled)
-  {
-    button3_handled = true;
-    bleKeyboard.press(KEYCODE_ARROW_UP);
-    Serial.println("3 up");
-    bleKeyboard.release(KEYCODE_ARROW_UP);
-  }
-  if(b4 == LOW && !button4_handled)
-  {
-    button4_handled = true;
-    bleKeyboard.press(KEYCODE_ARROW_RIGHT);
-    Serial.println("4 right");
-    bleKeyboard.release(KEYCODE_ARROW_RIGHT);
-  }
-  if(b1 == HIGH)
-  {
-    button1_handled = false;
-  }
-  if(b2 == HIGH && button2_handled)
-  {
-    bleMouse.release();
-    button2_handled = false;
-  }
-  if(b3 == HIGH)
-  {
-    button3_handled = false;
-  }
-  if(b4 == HIGH)
-  {
-    button4_handled = false;
-  }
 }
