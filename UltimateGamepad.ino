@@ -333,9 +333,9 @@ void setup()
 float pYaw=NULL,pPitch=NULL,pRoll=NULL;
 float fYaw=NULL,fPitch=NULL,fRoll=NULL;
 
-#define tusSayisi 6
+#define numberOfCommands 6
 
-int tuslar[tusSayisi][3] = {
+int commands[numberOfCommands][3] = {
   {KEYCODE_ARROW_DOWN,89,65625},
   {KEYCODE_ARROW_UP,88,65624},
   {KEYCODE_ARROW_LEFT,90,65626},
@@ -344,7 +344,7 @@ int tuslar[tusSayisi][3] = {
   {KEYCODE_ESC,10,65546}
 };
 
-bool tusDurumlari[tusSayisi] ={
+bool commandStates[numberOfCommands] ={
   false,
   false,
   false,
@@ -353,20 +353,20 @@ bool tusDurumlari[tusSayisi] ={
   false
 };
 
-void tuslariKontrolEt(int gelen)
+void checkInputCommandforIRSignal(int receivedSignal)
 {
-  for(int i=0; i<tusSayisi; i++)
+  for(int i=0; i<numberOfCommands; i++)
   {
-    siradakiTusuKontrolEt(gelen,i);
+    checkNextSignal(receivedSignal,i);
   }
 }
 
-void siradakiTusuKontrolEt(int gelen,short tusno)
+void checkNextSignal(int receivedSignal,short commandNumber)
 {
-  if(tuslar[tusno][tusDurumlari[tusno]?1:2] == gelen)
+  if(commands[commandNumber][commandStates[commandNumber]?1:2] == receivedSignal)
   {
-    keyPress(tuslar[tusno][0]);
-    tusDurumlari[tusno] = !tusDurumlari[tusno];
+    keyPress(commands[commandNumber][0]);
+    commandStates[commandNumber] = !commandStates[commandNumber];
   }
 }
 
@@ -424,7 +424,7 @@ void loop()
     {
       if (irrecv.decode(&results)) {
         int komut = results.value;
-        tuslariKontrolEt(komut);
+        checkInputCommandforIRSignal(komut);
         irrecv.resume(); // Receive the next value
       }
       if(isMouseActive)
