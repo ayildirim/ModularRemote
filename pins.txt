@@ -1,0 +1,7 @@
+IR Led = 22
+Infrared Receiver = 3
+Multiplexer SIG = 23
+Multiplexer bin1 = 4
+Multiplexer bin2 = 5
+Multiplexer bin3 = 6
+Multiplexer bin4 = 7
