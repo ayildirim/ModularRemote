@@ -1,5 +1,7 @@
-# UltimateGamepad
+# Modular Remote
 Imagine the most amazing gamepad ever, now make it happen!
+This project aims to build up toolkit to enable you to make your own gamepad or remote controller.
+Its power comes from modularity.
 
 
 # Parts
