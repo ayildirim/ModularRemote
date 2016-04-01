@@ -14,3 +14,11 @@ Its power comes from modularity.
 * Adafruit Lipoly/Lion charger backpack
 * Sparkfun Mux/Demux
 * Wireless charger (optional)
+* 
+
+# TODO
+* Move VIN for Sensor to a digital pin for power saving by turning it off when not in use.
+* Add Mosfet to supply power to the display on demand by controller.
+* 3D Model design for wireless charging dock.
+* Save Input Command pairs to the permanent flash memory.
+* Develop a solution to customize Input Command pairs on the go over the mobile via USB Host or Bluetooth.
