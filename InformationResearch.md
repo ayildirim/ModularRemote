@@ -6,3 +6,6 @@
 
 ## How to save data into permanent memory on Arduino flash storage
 * This will be needed for 2 cases; saving paired device and also input command pairs.
+
+## Find inspiration for easy mechanical clip-on solutions for modules
+* This clip-on design solution will be used to attach modules onto the main hub.
