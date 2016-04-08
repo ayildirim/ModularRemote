@@ -14,7 +14,12 @@ Its power comes from modularity.
 * Adafruit Lipoly/Lion charger backpack
 * Sparkfun Mux/Demux
 * Wireless charger (optional)
-* 
+
+# Dependencies
+* Arduino
+* BLEPeripheral SDK : https://github.com/sandeepmistry/arduino-BLEPeripheral
+* IRremote library
+* Razor AHRS firmware for sensor fusion
 
 # TODO
 * Move VIN for Sensor to a digital pin for power saving by turning it off when not in use.
