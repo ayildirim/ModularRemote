@@ -22,3 +22,4 @@ Its power comes from modularity.
 * 3D Model design for wireless charging dock.
 * Save Input Command pairs to the permanent flash memory.
 * Develop a solution to customize Input Command pairs on the go over the mobile via USB Host or Bluetooth.
+* Register paired device into the permanent flash memory.
